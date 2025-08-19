@@ -1,6 +1,7 @@
 import streamlit as st
 import pickle
 import string
+import re
 import nltk
 from pathlib import Path
 from nltk.stem.porter import PorterStemmer
@@ -10,10 +11,38 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS as SKLEARN_STOP_W
 
 ps = PorterStemmer()
  
-# Ensure necessary NLTK resources are available
-nltk.download('punkt', quiet=True)
+def ensure_nltk_resources() -> None:
+    """Attempt to ensure tokenizer and stopwords resources exist.
+    Tries both legacy and new resource names and degrades silently if downloads fail.
+    """
+    # punkt (legacy) and punkt_tab (newer NLTK builds)
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        try:
+            nltk.download('punkt', quiet=True)
+        except Exception:
+            pass
+    try:
+        nltk.data.find('tokenizers/punkt_tab')
+    except LookupError:
+        try:
+            nltk.download('punkt_tab', quiet=True)
+        except Exception:
+            pass
+    # stopwords corpus
+    try:
+        nltk.data.find('corpora/stopwords')
+    except LookupError:
+        try:
+            nltk.download('stopwords', quiet=True)
+        except Exception:
+            pass
+
+
+# Ensure necessary NLTK resources are available at startup (best-effort)
+ensure_nltk_resources()
 try:
-    nltk.download('stopwords', quiet=True)
     from nltk.corpus import stopwords as nltk_stopwords
     stop_words = set(nltk_stopwords.words('english'))
 except Exception:
@@ -23,7 +52,17 @@ except Exception:
 
 def transform_text(text):
     text = text.lower()
-    text = nltk.word_tokenize(text)
+    try:
+        tokens = nltk.word_tokenize(text)
+    except LookupError:
+        # Try to fetch missing resources and retry once
+        ensure_nltk_resources()
+        try:
+            tokens = nltk.word_tokenize(text)
+        except Exception:
+            # Final fallback: simple regex-based tokenization
+            tokens = re.findall(r"\b\w+\b", text)
+    text = tokens
 
     y = []
     for i in text:
