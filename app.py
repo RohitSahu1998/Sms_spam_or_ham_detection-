@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import string
 import nltk
+from pathlib import Path
 from nltk.stem.porter import PorterStemmer
 from sklearn.utils.validation import check_is_fitted
 from sklearn.exceptions import NotFittedError
@@ -44,8 +45,12 @@ def transform_text(text):
 
     return " ".join(y)
 
-tfidf = pickle.load(open('vectorizer.pkl','rb'))
-model = pickle.load(open('model.pkl','rb'))
+# Load artifacts relative to this file location (works locally and on Streamlit Cloud)
+BASE_DIR = Path(__file__).resolve().parent
+with open(BASE_DIR / 'vectorizer.pkl', 'rb') as f:
+    tfidf = pickle.load(f)
+with open(BASE_DIR / 'model.pkl', 'rb') as f:
+    model = pickle.load(f)
 
 st.title("Email/SMS Spam Classifier")
 
